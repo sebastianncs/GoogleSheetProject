@@ -1,0 +1,10 @@
+# Ignorar archivos de datos
+*.csv
+*.xlsx
+
+# Ignorar carpetas de entorno virtual
+venv/
+.env
+
+# Ignorar archivos temporales de Jupyter
+.ipynb_checkpoints/
