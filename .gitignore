@@ -1,6 +1,7 @@
 # Ignorar archivos de datos
 *.csv
 *.xlsx
+*.json
 
 # Ignorar carpetas de entorno virtual
 venv/
