@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 st.set_page_config(page_title="Gestión Laboratorio Microbiología", layout="wide")
 
 st.title("🧪 Sistema de Inventario de Antibióticos")
-st.markdown("### Diplomado IA para Ciencias de la Salud - USM")
 
 # --- 1. CARGA Y LIMPIEZA (Tu lógica validada) ---
 @st.cache_data # Esto hace que la web sea rápida
@@ -84,3 +83,29 @@ with col_der:
 # Botón para tus colegas
 if st.button('🚀 Ejecutar Análisis de Vencimientos'):
     st.write("Análisis en desarrollo para el Módulo 3...")
+
+df_consumo['siguiente_evento'] = df_consumo.groupby('antibiotico')['tipo_registro'].shift(-1)
+df_consumo['fecha_siguiente_apertura'] = df_consumo.groupby('antibiotico')['fecha_apertura'].shift(-1)
+
+# 3. FILTRO CRÍTICO: 
+# Solo calculamos la duración si:
+# - El evento actual es 'Apertura'
+# - El siguiente evento TAMBIÉN es 'Apertura' (esto garantiza que NO hubo un 'Cierre' entre medio)
+mask_consumo_real = (df_consumo['tipo_registro'] == 'Apertura') & (df_consumo['siguiente_evento'] == 'Apertura')
+
+# 4. Calculamos los días solo para esos casos
+df_consumo.loc[mask_consumo_real, 'dias_duracion'] = (
+    df_consumo['fecha_siguiente_apertura'] - df_consumo['fecha_apertura']
+).dt.days
+
+# 5. Resumen final de duración real
+rendimiento_real = df_consumo.groupby('antibiotico')['dias_duracion'].mean().reset_index()
+rendimiento_real.columns = ['Antibiótico', 'Duración Promedio (Días)']
+
+st.subheader("⏳ Rendimiento Neto por Antibiótico")
+st.markdown("_Cálculo basado exclusivamente en ciclos de consumo completo (Apertura a Apertura)_")
+
+if not rendimiento_real.dropna().empty:
+    st.dataframe(rendimiento_real.dropna().style.highlight_max(axis=0, color='#b7e4c7'))
+else:
+    st.info("Aún no hay suficientes ciclos Apertura-Apertura para calcular promedios.")
