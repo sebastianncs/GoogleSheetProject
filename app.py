@@ -84,6 +84,8 @@ with col_der:
 if st.button('🚀 Ejecutar Análisis de Vencimientos'):
     st.write("Análisis en desarrollo para el Módulo 3...")
 
+df_consumo = df.sort_values(['antibiotico', 'fecha_apertura']).copy()
+
 df_consumo['siguiente_evento'] = df_consumo.groupby('antibiotico')['tipo_registro'].shift(-1)
 df_consumo['fecha_siguiente_apertura'] = df_consumo.groupby('antibiotico')['fecha_apertura'].shift(-1)
 
