@@ -89,11 +89,21 @@ df_consumo = df.sort_values(['antibiotico', 'fecha_apertura']).copy()
 df_consumo['siguiente_evento'] = df_consumo.groupby('antibiotico')['tipo_registro'].shift(-1)
 df_consumo['fecha_siguiente_apertura'] = df_consumo.groupby('antibiotico')['fecha_apertura'].shift(-1)
 
+# Definimos la prioridad según tu flujo físico:
+# 1. Cierre (Lo primero que hago es descartar el viejo)
+# 2. Apertura (Luego abro el nuevo)
+# 3. Recepción (La recepción es un evento administrativo, puede ir al final)
+prioridad = {'Cierre': 1, 'Apertura': 2, 'Recepción': 3}
+df['prioridad_evento'] = df['tipo_registro'].map(prioridad)
+
+
 # 3. FILTRO CRÍTICO: 
 # Solo calculamos la duración si:
 # - El evento actual es 'Apertura'
 # - El siguiente evento TAMBIÉN es 'Apertura' (esto garantiza que NO hubo un 'Cierre' entre medio)
 mask_consumo_real = (df_consumo['tipo_registro'] == 'Apertura') & (df_consumo['siguiente_evento'] == 'Apertura')
+
+
 
 # 4. Calculamos los días solo para esos casos
 df_consumo.loc[mask_consumo_real, 'dias_duracion'] = (
