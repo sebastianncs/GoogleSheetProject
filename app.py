@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import gspread
+import os
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Gestión Laboratorio Microbiología", layout="wide")
@@ -11,42 +12,63 @@ st.title("🧪 Sistema de Inventario de Antibióticos")
 # --- 1. CARGA Y LIMPIEZA (Tu lógica validada) ---
 @st.cache_data # Esto hace que la web sea rápida
 def cargar_datos():
-    # Conexión y extracción de datos desde Google Sheets
-    client = gspread.service_account(filename='tensile-verve-492701-h4-5e040553396f.json')
-    sheet = client.open("StockAntibioticos").sheet1
-    data = sheet.get_all_records()
-    df = pd.DataFrame(data)
-    
-    # Renombrar
-    nuevos_nombres = {
-        'Tipo de registro': 'tipo_registro',
-        'Antibiótico': 'antibiotico',
-        'Fecha de recepción': 'fecha_recepcion',
-        'Cantidad (En caso de sensidiscos, indicar cantidad de tubos)': 'cantidad',
-        'Fecha de apertura': 'fecha_apertura',
-        'Fecha de cierre': 'fecha_cierre',
-        'Motivo de cierre': 'motivo_cierre',
-        'Fecha de vencimiento': 'fecha_vencimiento',
-        'Cantidad eliminada': 'cantidad_eliminada'
-    }
-    df = df.rename(columns=nuevos_nombres)
-    
-    # Limpieza
-    cols_drop = ['Marca temporal', 'Responsable (iniciales)', 'Comentario (opcional)']
-    df = df.drop(columns=cols_drop, errors='ignore')
-    
-    # Formato Fechas
-    cols_fechas = ['fecha_recepcion', 'fecha_apertura', 'fecha_cierre', 'fecha_vencimiento']
-    for col in cols_fechas:
-        df[col] = pd.to_datetime(df[col], dayfirst=True, errors='coerce')
+    try:
+        # 1. Usar ruta absoluta para encontrar el JSON sin importar desde dónde ejecutes
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        json_path = os.path.join(base_dir, 'tensile-verve-492701-h4-5e040553396f.json')
         
-    # Lógica de Números
-    df['cantidad'] = pd.to_numeric(df['cantidad'], errors='coerce').fillna(0)
-    df['cantidad_eliminada'] = pd.to_numeric(df['cantidad_eliminada'], errors='coerce').fillna(0)
-    
-    return df
+        # Conexión y extracción de datos desde Google Sheets
+        client = gspread.service_account(filename=json_path)
+        sheet = client.open("StockAntibioticos").sheet1
+        data = sheet.get_all_records()
+        df = pd.DataFrame(data)
+        
+        # Limpiar espacios en blanco al final de los nombres de las columnas en Sheets
+        df.columns = df.columns.str.strip()
+        
+        # Renombrar
+        nuevos_nombres = {
+            'Tipo de registro': 'tipo_registro',
+            'Antibiótico': 'antibiotico',
+            'Fecha de recepción': 'fecha_recepcion',
+            'Cantidad (En caso de sensidiscos, indicar cantidad de tubos)': 'cantidad',
+            'Fecha de apertura': 'fecha_apertura',
+            'Fecha de cierre': 'fecha_cierre',
+            'Motivo de cierre': 'motivo_cierre',
+            'Fecha de vencimiento': 'fecha_vencimiento',
+            'Cantidad eliminada': 'cantidad_eliminada'
+        }
+        df = df.rename(columns=nuevos_nombres)
+        
+        # Limpieza
+        cols_drop = ['Marca temporal', 'Responsable (iniciales)', 'Comentario (opcional)']
+        df = df.drop(columns=cols_drop, errors='ignore')
+        
+        # Formato Fechas
+        cols_fechas = ['fecha_recepcion', 'fecha_apertura', 'fecha_cierre', 'fecha_vencimiento']
+        for col in cols_fechas:
+            if col in df.columns:
+                df[col] = pd.to_datetime(df[col], dayfirst=True, errors='coerce')
+                
+        # Lógica de Números
+        if 'cantidad' in df.columns:
+            df['cantidad'] = pd.to_numeric(df['cantidad'], errors='coerce').fillna(0)
+        if 'cantidad_eliminada' in df.columns:
+            df['cantidad_eliminada'] = pd.to_numeric(df['cantidad_eliminada'], errors='coerce').fillna(0)
+            
+        return df
+        
+    except Exception as e:
+        # Si algo falla, Streamlit lo mostrará en rojo en lugar de colapsar
+        st.error(f"❌ Error al cargar los datos: {e}")
+        return pd.DataFrame()
 
 df = cargar_datos()
+
+# Detenemos la aplicación suavemente si el DataFrame falló
+if df.empty or 'tipo_registro' not in df.columns:
+    st.warning("⚠️ Hubo un problema al procesar la información. Verifica la conexión o el nombre de las columnas en Google Sheets.")
+    st.stop()
 
 # --- 2. CÁLCULO DE STOCK (Tu fórmula de éxito) ---
 recepcionados = df[df['tipo_registro'] == 'Recepción'].groupby('antibiotico')['cantidad'].sum()
