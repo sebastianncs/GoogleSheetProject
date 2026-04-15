@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import gspread
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Gestión Laboratorio Microbiología", layout="wide")
@@ -10,7 +11,11 @@ st.title("🧪 Sistema de Inventario de Antibióticos")
 # --- 1. CARGA Y LIMPIEZA (Tu lógica validada) ---
 @st.cache_data # Esto hace que la web sea rápida
 def cargar_datos():
-    df = pd.read_csv('stock_atb.csv')
+    # Conexión y extracción de datos desde Google Sheets
+    client = gspread.service_account(filename='tensile-verve-492701-h4-5e040553396f.json')
+    sheet = client.open("StockAntibioticos").sheet1
+    data = sheet.get_all_records()
+    df = pd.DataFrame(data)
     
     # Renombrar
     nuevos_nombres = {
